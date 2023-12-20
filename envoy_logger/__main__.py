@@ -3,9 +3,9 @@ import argparse
 
 from requests.exceptions import RequestException
 
-from . import enphaseenergy
-from .sampling_loop import SamplingLoop
-from .cfg import load_cfg
+from envoy_logger import enphaseenergy
+from envoy_logger.sampling_loop import SamplingLoop
+from envoy_logger.cfg import load_cfg
 
 logging.basicConfig(
     level=logging.INFO,

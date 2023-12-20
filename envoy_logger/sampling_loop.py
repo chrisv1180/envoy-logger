@@ -8,11 +8,13 @@ from influxdb_client import WritePrecision, InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 from . import envoy
-from .model import SampleData, PowerSample, InverterSample, filter_new_inverter_data
+from .model import SampleData, PowerSample, InverterSample, filter_new_inverter_data, BatteriesSample
 from .cfg import Config
 
 class SamplingLoop:
-    interval = 5
+    interval = 10  # seconds
+    interval_battery = 6  # (interval_battery * interval) seconds
+    interval_battery_counter = 12  # at least as high as interval_battery or first value is delayed
 
     def __init__(self, token: str, cfg: Config) -> None:
         self.cfg = cfg
@@ -37,6 +39,7 @@ class SamplingLoop:
             try:
                 data = self.get_sample()
                 inverter_data = self.get_inverter_data()
+                battery_data = self.get_battery_data()
             except (ReadTimeout, ConnectTimeout) as e:
                 # Envoy gets REALLY MAD if you block it's access to enphaseenergy.com
                 # using a VLAN.
@@ -49,7 +52,7 @@ class SamplingLoop:
                     raise
                 pass
             else:
-                self.write_to_influxdb(data, inverter_data)
+                self.write_to_influxdb(data, inverter_data, battery_data)
                 timeout_count = 0
 
     def get_sample(self) -> SampleData:
@@ -80,14 +83,23 @@ class SamplingLoop:
         self.prev_inverter_data = data
         return filtered_data
 
-    def write_to_influxdb(self, data: SampleData, inverter_data: Dict[str, InverterSample]) -> None:
-        hr_points = self.get_high_rate_points(data, inverter_data)
+    def get_battery_data(self) -> BatteriesSample:
+        data = None
+        if self.interval_battery_counter < self.interval_battery:
+            self.interval_battery_counter = self.interval_battery_counter + 1
+        else:
+            data = envoy.get_battery_data(self.cfg.envoy_url, self.session_id)
+            self.interval_battery_counter = 0
+        return data
+
+    def write_to_influxdb(self, data: SampleData, inverter_data: Dict[str, InverterSample], batteries: BatteriesSample) -> None:
+        hr_points = self.get_high_rate_points(data, inverter_data, batteries)
         lr_points = self.low_rate_points(data)
         self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_hr, record=hr_points)
         if lr_points:
             self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_lr, record=lr_points)
 
-    def get_high_rate_points(self, data: SampleData, inverter_data: Dict[str, InverterSample]) -> List[Point]:
+    def get_high_rate_points(self, data: SampleData, inverter_data: Dict[str, InverterSample], batteries: BatteriesSample) -> List[Point]:
         points = []
         for i, line in enumerate(data.total_consumption.lines):
             p = self.idb_point_from_line("consumption", i, line)
@@ -102,6 +114,9 @@ class SamplingLoop:
         for inverter in inverter_data.values():
             p = self.point_from_inverter(inverter)
             points.append(p)
+
+        if batteries is not None:
+            points.extend(self.points_from_batteries(batteries=batteries))
 
         return points
 
@@ -132,6 +147,24 @@ class SamplingLoop:
         p.field("P", inverter.watts)
 
         return p
+
+    def points_from_batteries(self, batteries: BatteriesSample) -> list[Point]:
+        battery_points = []
+        for battery in batteries.batteries:
+            p = Point(f"battery-{battery['encharge_capacity']}-{battery['serial_num']}")
+            p.time(batteries.ts, WritePrecision.S)
+            p.tag("source", self.cfg.source_tag)
+            p.tag("measurement-type", "battery")
+            p.tag("serial", battery['serial_num'])
+
+            p.field("percentFull", battery['percentFull'])
+            p.field("temperature", battery['temperature'])
+            p.field("maxCellTemp", battery['maxCellTemp'])
+            p.field("led_status", battery['led_status'])
+
+        battery_points.append(p)
+
+        return battery_points
 
     def low_rate_points(self, data: SampleData) -> List[Point]:
         # First check if the day rolled over

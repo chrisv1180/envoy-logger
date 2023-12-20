@@ -61,6 +61,26 @@ class EIMSample:
 
         LOG.debug(f"Sampled {len(self.lines)} power lines of type: {data['measurementType']}")
 
+
+class BatteriesSample:
+    def __init__(self, data, ts: datetime) -> None:
+        assert len(data) >= 1
+        assert any('ENCHARGE' in device['type'] for device in data)
+
+        # Do not use JSON data's timestamp. Envoy's clock is wrong
+        self.ts = ts
+
+        self.batteries = []
+
+        for device in data:
+            if device['type'] == 'ENCHARGE':
+                for device_data in device['devices']:
+                    battery = device_data
+                    self.batteries.append(battery)
+
+        LOG.debug(f"Sampled {len(self.batteries)} batteries")
+
+
 class EIMLineSample(PowerSample):
     """
     Sample for a Single "EIM" line sensor

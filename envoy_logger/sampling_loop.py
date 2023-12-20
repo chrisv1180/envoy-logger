@@ -13,7 +13,7 @@ from .cfg import Config
 
 class SamplingLoop:
     interval = 10  # seconds
-    interval_battery = 6  # (interval_battery * interval) seconds
+    interval_battery = 6  # each (interval_battery * interval) seconds one measurement
     interval_battery_counter = 12  # at least as high as interval_battery or first value is delayed
 
     def __init__(self, token: str, cfg: Config) -> None:
@@ -85,7 +85,7 @@ class SamplingLoop:
 
     def get_battery_data(self) -> BatteriesSample:
         data = None
-        if self.interval_battery_counter < self.interval_battery:
+        if self.interval_battery_counter < self.interval_battery - 1:
             self.interval_battery_counter = self.interval_battery_counter + 1
         else:
             data = envoy.get_battery_data(self.cfg.envoy_url, self.session_id)

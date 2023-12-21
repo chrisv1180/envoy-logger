@@ -251,7 +251,7 @@ class SamplingLoop:
             |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
             |> filter(fn: (r) => r["measurement-type"] == "battery")
             |> filter(fn: (r) => r["_field"] == "percentFull")
-            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+            |> aggregateWindow(every: 24h, fn: mean, createEmpty: false)
             |> yield(name: "percent_soc")
         """
         result = self.influxdb_query_api.query(query=query)
@@ -266,7 +266,7 @@ class SamplingLoop:
                     p.time(record['_time'], WritePrecision.S)
                     p.tag("source", self.cfg.source_tag)
                     p.tag("measurement-type", measurement_type)
-                    p.tag("interval", "1h")
+                    p.tag("interval", "24h")
 
                     p.field("mean_percent_soc", record.get_value())
                     points.append(p)
@@ -281,7 +281,7 @@ class SamplingLoop:
             |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
             |> filter(fn: (r) => r["measurement-type"] == "battery")
             |> filter(fn: (r) => r["_field"] == "temperature")
-            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+            |> aggregateWindow(every: 24h, fn: mean, createEmpty: false)
             |> yield(name: "percent_soc")
         """
         result = self.influxdb_query_api.query(query=query)
@@ -296,7 +296,7 @@ class SamplingLoop:
                     p.time(record['_time'], WritePrecision.S)
                     p.tag("source", self.cfg.source_tag)
                     p.tag("measurement-type", measurement_type)
-                    p.tag("interval", "1h")
+                    p.tag("interval", "24h")
 
                     p.field("mean_temperature", record.get_value())
                     points.append(p)

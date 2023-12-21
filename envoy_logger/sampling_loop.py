@@ -14,7 +14,7 @@ from .cfg import Config
 class SamplingLoop:
     interval = 10  # seconds
     interval_battery = 6  # each (interval_battery * interval) seconds one measurement
-    interval_battery_counter = 12  # at least as high as interval_battery or first value is delayed
+    interval_battery_counter = interval_battery  # at least as high as interval_battery or first value is delayed
 
     def __init__(self, token: str, cfg: Config) -> None:
         self.cfg = cfg
@@ -178,15 +178,15 @@ class SamplingLoop:
 
         # Collect points that summarize prior day
         points = self.compute_daily_Wh_points(data.ts)
-        points.extend(self.low_rate_points_batteries())
+        points.extend(self.low_rate_points_batteries(data.ts))
 
         return points
 
-    def low_rate_points_batteries(self) -> List[Point]:
+    def low_rate_points_batteries(self, ts: datetime) -> List[Point]:
 
         # Collect points that summarize prior day
-        points = self.compute_daily_battery_Soc_points()
-        points.extend(self.compute_daily_battery_temperature_points())
+        points = self.compute_daily_battery_Soc_points(ts)
+        points.extend(self.compute_daily_battery_temperature_points(ts))
 
         return points
 
@@ -243,7 +243,7 @@ class SamplingLoop:
 
         return points
 
-    def compute_daily_battery_Soc_points(self) -> List[Point]:
+    def compute_daily_battery_Soc_points(self, ts: datetime) -> List[Point]:
 
         query = f"""
         from(bucket: "{self.cfg.influxdb_bucket_hr}")
@@ -263,7 +263,7 @@ class SamplingLoop:
                     serial = record['serial']
                     p = Point(f"battery-daily-summary-{serial}")
                     p.tag("serial", serial)
-                    p.time(record['_time'], WritePrecision.S)
+                    p.time(ts, WritePrecision.S)
                     p.tag("source", self.cfg.source_tag)
                     p.tag("measurement-type", measurement_type)
                     p.tag("interval", "24h")
@@ -273,7 +273,7 @@ class SamplingLoop:
 
         return points
 
-    def compute_daily_battery_temperature_points(self) -> List[Point]:
+    def compute_daily_battery_temperature_points(self, ts: datetime) -> List[Point]:
 
         query = f"""
         from(bucket: "{self.cfg.influxdb_bucket_hr}")
@@ -293,7 +293,7 @@ class SamplingLoop:
                     serial = record['serial']
                     p = Point(f"battery-daily-summary-{serial}")
                     p.tag("serial", serial)
-                    p.time(record['_time'], WritePrecision.S)
+                    p.time(ts, WritePrecision.S)
                     p.tag("source", self.cfg.source_tag)
                     p.tag("measurement-type", measurement_type)
                     p.tag("interval", "24h")

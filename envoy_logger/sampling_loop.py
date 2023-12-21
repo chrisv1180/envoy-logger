@@ -31,6 +31,9 @@ class SamplingLoop:
         # Used to track the transition to the next day for daily measurements
         self.todays_date = date.today()
 
+         # Used to track the transition to the next hour of hourly measurements
+        self.actual_hour= datetime.now().hour
+
         self.prev_inverter_data = None
 
     def run(self):
@@ -95,9 +98,12 @@ class SamplingLoop:
     def write_to_influxdb(self, data: SampleData, inverter_data: Dict[str, InverterSample], batteries: BatteriesSample) -> None:
         hr_points = self.get_high_rate_points(data, inverter_data, batteries)
         lr_points = self.low_rate_points(data)
+        mr_points = self.medium_rate_points(data)
         self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_hr, record=hr_points)
         if lr_points:
             self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_lr, record=lr_points)
+        if mr_points:
+            self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_mr, record=mr_points)
 
     def get_high_rate_points(self, data: SampleData, inverter_data: Dict[str, InverterSample], batteries: BatteriesSample) -> List[Point]:
         points = []
@@ -302,3 +308,142 @@ class SamplingLoop:
                     points.append(p)
 
         return points
+
+    # medium rate points (hourly data)
+    def medium_rate_points(self, data: SampleData) -> List[Point]:
+        # First check if hour rolled over
+        new_hour = datetime.now().hour
+        if self.actual_hour == new_hour:
+            # still the same hour. No summary
+            return []
+
+        # it is a new hour!
+        self.actual_hour = new_hour
+
+        # Collect points that summarize prior hour
+        points = self.compute_hourly_Wh_points(data.ts)
+        points.extend(self.medium_rate_points_batteries(data.ts))
+
+        return points
+
+    def medium_rate_points_batteries(self, ts: datetime) -> List[Point]:
+
+        # Collect points that summarize prior day
+        points = self.compute_hourly_battery_Soc_points(ts)
+        points.extend(self.compute_hourly_battery_temperature_points(ts))
+
+        return points
+
+    def compute_hourly_Wh_points(self, ts: datetime) -> List[Point]:
+        # Not using integral(interpolate:"linear") since it does not do what you
+        # think it would mean. Without the "interoplation" arg, it still does
+        # linear interpolation correctly.
+        # https://github.com/influxdata/flux/issues/4782
+        query = f"""
+        from(bucket: "{self.cfg.influxdb_bucket_hr}")
+            |> range(start: -1h, stop: 0h)
+            |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
+            |> filter(fn: (r) => r["_field"] == "P")
+            |> integral(unit: 1h)
+            |> keep(columns: ["_value", "line-idx", "measurement-type", "serial"])
+            |> yield(name: "total")
+        """
+        result = self.influxdb_query_api.query(query=query)
+        unreported_inverters = set(self.cfg.inverters.keys())
+        points = []
+        for table in result:
+            for record in table.records:
+                measurement_type = record['measurement-type']
+                if measurement_type == "inverter":
+                    serial = record['serial']
+                    unreported_inverters.discard(serial)
+                    p = Point(f"inverter-hourly-summary-{serial}")
+                    p.tag("serial", serial)
+                    self.cfg.apply_tags_to_inverter_point(p, serial)
+                else:
+                    idx = record['line-idx']
+                    p = Point(f"{measurement_type}-hourly-summary-line{idx}")
+                    p.tag("line-idx", idx)
+
+                p.time(ts, WritePrecision.S)
+                p.tag("source", self.cfg.source_tag)
+                p.tag("measurement-type", measurement_type)
+                p.tag("interval", "1h")
+
+                p.field("Wh", record.get_value())
+                points.append(p)
+
+        # If any inverters did not report in for the day, fill in a 0wh measurement
+        for serial in unreported_inverters:
+            p = Point(f"inverter-hourly-summary-{serial}")
+            p.tag("serial", serial)
+            self.cfg.apply_tags_to_inverter_point(p, serial)
+            p.time(ts, WritePrecision.S)
+            p.tag("source", self.cfg.source_tag)
+            p.tag("measurement-type", measurement_type)
+            p.tag("interval", "1h")
+            p.field("Wh", 0.0)
+            points.append(p)
+
+        return points
+
+    def compute_hourly_battery_Soc_points(self, ts: datetime) -> List[Point]:
+
+        query = f"""
+        from(bucket: "{self.cfg.influxdb_bucket_hr}")
+            |> range(start: -1h, stop: 0h)
+            |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
+            |> filter(fn: (r) => r["measurement-type"] == "battery")
+            |> filter(fn: (r) => r["_field"] == "percentFull")
+            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+            |> yield(name: "percent_soc")
+        """
+        result = self.influxdb_query_api.query(query=query)
+        points = []
+        for table in result:
+            for record in table.records:
+                measurement_type = record['measurement-type']
+                if measurement_type == "battery":
+                    serial = record['serial']
+                    p = Point(f"battery-hourly-summary-{serial}")
+                    p.tag("serial", serial)
+                    p.time(ts, WritePrecision.S)
+                    p.tag("source", self.cfg.source_tag)
+                    p.tag("measurement-type", measurement_type)
+                    p.tag("interval", "1h")
+
+                    p.field("mean_percent_soc", record.get_value())
+                    points.append(p)
+
+        return points
+
+    def compute_hourly_battery_temperature_points(self, ts: datetime) -> List[Point]:
+
+        query = f"""
+        from(bucket: "{self.cfg.influxdb_bucket_hr}")
+            |> range(start: -1h, stop: 0h)
+            |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
+            |> filter(fn: (r) => r["measurement-type"] == "battery")
+            |> filter(fn: (r) => r["_field"] == "temperature")
+            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+            |> yield(name: "percent_soc")
+        """
+        result = self.influxdb_query_api.query(query=query)
+        points = []
+        for table in result:
+            for record in table.records:
+                measurement_type = record['measurement-type']
+                if measurement_type == "battery":
+                    serial = record['serial']
+                    p = Point(f"battery-hourly-summary-{serial}")
+                    p.tag("serial", serial)
+                    p.time(ts, WritePrecision.S)
+                    p.tag("source", self.cfg.source_tag)
+                    p.tag("measurement-type", measurement_type)
+                    p.tag("interval", "1h")
+
+                    p.field("mean_temperature", record.get_value())
+                    points.append(p)
+
+        return points
+

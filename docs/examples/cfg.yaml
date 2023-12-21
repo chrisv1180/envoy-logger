@@ -28,6 +28,7 @@ influxdb:
   # same bucket
   bucket_hr: high_rate
   bucket_lr: low_rate
+  bucket_mr: medium_rate
   # bucket: all_data
 
 # Since the Envoy only tracks panel-level inverter production by serial number,

@@ -24,7 +24,9 @@ class Config:
             bucket = data['influxdb'].get('bucket', None)
             bucket_lr = data['influxdb'].get('bucket_lr', None)
             bucket_hr = data['influxdb'].get('bucket_hr', None)
+            bucket_mr = data['influxdb'].get('bucket_mr', None)
             self.influxdb_bucket_lr = bucket_lr or bucket
+            self.influxdb_bucket_mr = bucket_mr or bucket
             self.influxdb_bucket_hr = bucket_hr or bucket
 
             self.inverters = {} # type: Dict[str, InverterConfig]

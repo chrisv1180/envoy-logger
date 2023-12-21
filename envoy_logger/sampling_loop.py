@@ -183,8 +183,8 @@ class SamplingLoop:
         self.todays_date = new_date
 
         # Collect points that summarize prior day
-        points = self.compute_daily_Wh_points(data.ts)
-        points.extend(self.low_rate_points_batteries(data.ts))
+        points = self.compute_daily_Wh_points(data.ts.replace(minute=0, second=0, microsecond=0))
+        points.extend(self.low_rate_points_batteries(data.ts.replace(minute=0, second=0, microsecond=0)))
 
         return points
 
@@ -259,6 +259,22 @@ class SamplingLoop:
             |> filter(fn: (r) => r["_field"] == "percentFull")
             |> aggregateWindow(every: 24h, fn: mean, createEmpty: false)
             |> yield(name: "mean_soc")
+        
+        from(bucket: "{self.cfg.influxdb_bucket_hr}")
+            |> range(start: -24h, stop: 0h)
+            |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
+            |> filter(fn: (r) => r["measurement-type"] == "battery")
+            |> filter(fn: (r) => r["_field"] == "percentFull")
+            |> aggregateWindow(every: 24h, fn: max, createEmpty: false)
+            |> yield(name: "max_soc")
+        
+        from(bucket: "{self.cfg.influxdb_bucket_hr}")
+            |> range(start: -24h, stop: 0h)
+            |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
+            |> filter(fn: (r) => r["measurement-type"] == "battery")
+            |> filter(fn: (r) => r["_field"] == "percentFull")
+            |> aggregateWindow(every: 24h, fn: min, createEmpty: false)
+            |> yield(name: "min_soc")
         """
         result = self.influxdb_query_api.query(query=query)
         points = []
@@ -274,7 +290,7 @@ class SamplingLoop:
                     p.tag("measurement-type", measurement_type)
                     p.tag("interval", "24h")
 
-                    p.field("mean_soc", record.get_value())
+                    p.field(record["result"], record.get_value())
                     points.append(p)
 
         return points
@@ -304,7 +320,7 @@ class SamplingLoop:
                     p.tag("measurement-type", measurement_type)
                     p.tag("interval", "24h")
 
-                    p.field("mean_temperature", record.get_value())
+                    p.field(record["result"], record.get_value())
                     points.append(p)
 
         return points
@@ -321,8 +337,8 @@ class SamplingLoop:
         self.actual_hour = new_hour
 
         # Collect points that summarize prior hour
-        points = self.compute_hourly_Wh_points(data.ts)
-        points.extend(self.medium_rate_points_batteries(data.ts))
+        points = self.compute_hourly_Wh_points(data.ts.replace(minute=0, second=0, microsecond=0))
+        points.extend(self.medium_rate_points_batteries(data.ts.replace(minute=0, second=0, microsecond=0)))
 
         return points
 
@@ -397,6 +413,22 @@ class SamplingLoop:
             |> filter(fn: (r) => r["_field"] == "percentFull")
             |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
             |> yield(name: "mean_soc")
+            
+        from(bucket: "{self.cfg.influxdb_bucket_hr}")
+            |> range(start: -1h, stop: 0h)
+            |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
+            |> filter(fn: (r) => r["measurement-type"] == "battery")
+            |> filter(fn: (r) => r["_field"] == "percentFull")
+            |> aggregateWindow(every: 1h, fn: max, createEmpty: false)
+            |> yield(name: "max_soc")
+            
+        from(bucket: "{self.cfg.influxdb_bucket_hr}")
+            |> range(start: -1h, stop: 0h)
+            |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
+            |> filter(fn: (r) => r["measurement-type"] == "battery")
+            |> filter(fn: (r) => r["_field"] == "percentFull")
+            |> aggregateWindow(every: 1h, fn: min, createEmpty: false)
+            |> yield(name: "min_soc")
         """
         result = self.influxdb_query_api.query(query=query)
         points = []
@@ -412,7 +444,7 @@ class SamplingLoop:
                     p.tag("measurement-type", measurement_type)
                     p.tag("interval", "1h")
 
-                    p.field("mean_soc", record.get_value())
+                    p.field(record["result"], record.get_value())
                     points.append(p)
 
         return points
@@ -442,7 +474,7 @@ class SamplingLoop:
                     p.tag("measurement-type", measurement_type)
                     p.tag("interval", "1h")
 
-                    p.field("mean_temperature", record.get_value())
+                    p.field(record["result"], record.get_value())
                     points.append(p)
 
         return points

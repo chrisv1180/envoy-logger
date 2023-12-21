@@ -258,7 +258,7 @@ class SamplingLoop:
             |> filter(fn: (r) => r["measurement-type"] == "battery")
             |> filter(fn: (r) => r["_field"] == "percentFull")
             |> aggregateWindow(every: 24h, fn: mean, createEmpty: false)
-            |> yield(name: "percent_soc")
+            |> yield(name: "mean_soc")
         """
         result = self.influxdb_query_api.query(query=query)
         points = []
@@ -274,7 +274,7 @@ class SamplingLoop:
                     p.tag("measurement-type", measurement_type)
                     p.tag("interval", "24h")
 
-                    p.field("mean_percent_soc", record.get_value())
+                    p.field("mean_soc", record.get_value())
                     points.append(p)
 
         return points
@@ -288,7 +288,7 @@ class SamplingLoop:
             |> filter(fn: (r) => r["measurement-type"] == "battery")
             |> filter(fn: (r) => r["_field"] == "temperature")
             |> aggregateWindow(every: 24h, fn: mean, createEmpty: false)
-            |> yield(name: "percent_soc")
+            |> yield(name: "mean_temperature")
         """
         result = self.influxdb_query_api.query(query=query)
         points = []
@@ -396,7 +396,7 @@ class SamplingLoop:
             |> filter(fn: (r) => r["measurement-type"] == "battery")
             |> filter(fn: (r) => r["_field"] == "percentFull")
             |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-            |> yield(name: "percent_soc")
+            |> yield(name: "mean_soc")
         """
         result = self.influxdb_query_api.query(query=query)
         points = []
@@ -412,7 +412,7 @@ class SamplingLoop:
                     p.tag("measurement-type", measurement_type)
                     p.tag("interval", "1h")
 
-                    p.field("mean_percent_soc", record.get_value())
+                    p.field("mean_soc", record.get_value())
                     points.append(p)
 
         return points
@@ -426,7 +426,7 @@ class SamplingLoop:
             |> filter(fn: (r) => r["measurement-type"] == "battery")
             |> filter(fn: (r) => r["_field"] == "temperature")
             |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-            |> yield(name: "percent_soc")
+            |> yield(name: "mean_temperature")
         """
         result = self.influxdb_query_api.query(query=query)
         points = []

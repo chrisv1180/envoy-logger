@@ -178,6 +178,15 @@ class SamplingLoop:
 
         # Collect points that summarize prior day
         points = self.compute_daily_Wh_points(data.ts)
+        points.extend(self.low_rate_points_batteries())
+
+        return points
+
+    def low_rate_points_batteries(self) -> List[Point]:
+
+        # Collect points that summarize prior day
+        points = self.compute_daily_battery_Soc_points()
+        points.extend(self.compute_daily_battery_temperature_points())
 
         return points
 
@@ -231,5 +240,65 @@ class SamplingLoop:
             p.tag("interval", "24h")
             p.field("Wh", 0.0)
             points.append(p)
+
+        return points
+
+    def compute_daily_battery_Soc_points(self) -> List[Point]:
+
+        query = f"""
+        from(bucket: "{self.cfg.influxdb_bucket_hr}")
+            |> range(start: -24h, stop: 0h)
+            |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
+            |> filter(fn: (r) => r["measurement-type"] == "battery")
+            |> filter(fn: (r) => r["_field"] == "percentFull")
+            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+            |> yield(name: "percent_soc")
+        """
+        result = self.influxdb_query_api.query(query=query)
+        points = []
+        for table in result:
+            for record in table.records:
+                measurement_type = record['measurement-type']
+                if measurement_type == "battery":
+                    serial = record['serial']
+                    p = Point(f"battery-daily-summary-{serial}")
+                    p.tag("serial", serial)
+                    p.time(record['_time'], WritePrecision.S)
+                    p.tag("source", self.cfg.source_tag)
+                    p.tag("measurement-type", measurement_type)
+                    p.tag("interval", "1h")
+
+                    p.field("mean_percent_soc", record.get_value())
+                    points.append(p)
+
+        return points
+
+    def compute_daily_battery_temperature_points(self) -> List[Point]:
+
+        query = f"""
+        from(bucket: "{self.cfg.influxdb_bucket_hr}")
+            |> range(start: -24h, stop: 0h)
+            |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
+            |> filter(fn: (r) => r["measurement-type"] == "battery")
+            |> filter(fn: (r) => r["_field"] == "temperature")
+            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+            |> yield(name: "percent_soc")
+        """
+        result = self.influxdb_query_api.query(query=query)
+        points = []
+        for table in result:
+            for record in table.records:
+                measurement_type = record['measurement-type']
+                if measurement_type == "battery":
+                    serial = record['serial']
+                    p = Point(f"battery-daily-summary-{serial}")
+                    p.tag("serial", serial)
+                    p.time(record['_time'], WritePrecision.S)
+                    p.tag("source", self.cfg.source_tag)
+                    p.tag("measurement-type", measurement_type)
+                    p.tag("interval", "1h")
+
+                    p.field("mean_temperature", record.get_value())
+                    points.append(p)
 
         return points

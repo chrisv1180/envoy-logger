@@ -55,8 +55,18 @@ class SamplingLoop:
                     raise
                 pass
             else:
-                self.write_to_influxdb(data, inverter_data, battery_data)
-                timeout_count = 0
+                try:
+                    self.write_to_influxdb(data, inverter_data, battery_data)
+                    timeout_count = 0
+                except Exception as e:
+                    logging.warning(f"write_to_influxdb had an exception ({timeout_count + 1}/10): {e}")
+                    timeout_count += 1
+                    if timeout_count >= 10:
+                        # Give up after a while
+                        raise
+                    # sleep for a minute (50s + 10s wait in get sample) to allow system to recover
+                    time.sleep(50)
+
 
     def get_sample(self) -> SampleData:
         # Determine how long until the next sample needs to be taken

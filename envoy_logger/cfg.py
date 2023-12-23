@@ -29,6 +29,9 @@ class Config:
             self.influxdb_bucket_mr = bucket_mr or bucket
             self.influxdb_bucket_hr = bucket_hr or bucket
 
+            self.calc_hourly_data = data['influxdb'].get('calc_hourly_data', False)
+            self.calc_daily_data = data['influxdb'].get('calc_daily_data', False)
+
             self.inverters = {} # type: Dict[str, InverterConfig]
             for serial, inverter_data in data.get("inverters", {}).items():
                 serial = str(serial)

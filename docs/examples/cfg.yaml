@@ -31,6 +31,10 @@ influxdb:
   bucket_mr: medium_rate
   # bucket: all_data
 
+  # true if hourly or daily data should be calculated and saved in bucket_mr / bucket_lr
+  #calc_daily_data: true
+  #calc_hourly_data: true
+
 # Since the Envoy only tracks panel-level inverter production by serial number,
 # it can be useful to provide InfluxDB measurements with additional tags that
 # further describe your panels. This is completely optional, but can be useful

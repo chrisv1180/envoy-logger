@@ -107,13 +107,17 @@ class SamplingLoop:
 
     def write_to_influxdb(self, data: SampleData, inverter_data: Dict[str, InverterSample], batteries: BatteriesSample) -> None:
         hr_points = self.get_high_rate_points(data, inverter_data, batteries)
-        lr_points = self.low_rate_points(data)
-        mr_points = self.medium_rate_points(data)
         self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_hr, record=hr_points)
-        if lr_points:
-            self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_lr, record=lr_points)
-        if mr_points:
-            self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_mr, record=mr_points)
+
+        if self.cfg.calc_hourly_data:
+            mr_points = self.medium_rate_points(data)
+            if mr_points:
+                self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_mr, record=mr_points)
+
+        if self.cfg.calc_daily_data:
+            lr_points = self.low_rate_points(data)
+            if lr_points:
+                self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_lr, record=lr_points)
 
     def get_high_rate_points(self, data: SampleData, inverter_data: Dict[str, InverterSample], batteries: BatteriesSample) -> List[Point]:
         points = []

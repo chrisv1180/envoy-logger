@@ -150,6 +150,9 @@ class SamplingLoop:
         p.field("I_rms", data.rmsCurrent)
         p.field("V_rms", data.rmsVoltage)
 
+        p.field("whToday", data.whToday)
+        p.field("whLifetime", data.whLifetime)
+
         return p
 
     def point_from_inverter(self, inverter: InverterSample) -> Point:

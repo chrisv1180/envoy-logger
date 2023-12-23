@@ -196,8 +196,8 @@ class SamplingLoop:
         self.todays_date = new_date
 
         # Collect points that summarize prior day
-        points = self.compute_daily_Wh_points(data.ts.replace(minute=0, second=0, microsecond=0))
-        points.extend(self.low_rate_points_batteries(data.ts.replace(minute=0, second=0, microsecond=0)))
+        points = self.compute_daily_Wh_points(data.ts)
+        points.extend(self.low_rate_points_batteries(data.ts))
 
         return points
 
@@ -350,8 +350,8 @@ class SamplingLoop:
         self.actual_hour = new_hour
 
         # Collect points that summarize prior hour
-        points = self.compute_hourly_Wh_points(data.ts.replace(minute=0, second=0, microsecond=0))
-        points.extend(self.medium_rate_points_batteries(data.ts.replace(minute=0, second=0, microsecond=0)))
+        points = self.compute_hourly_Wh_points(data.ts)
+        points.extend(self.medium_rate_points_batteries(data.ts))
 
         return points
 

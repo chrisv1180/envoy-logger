@@ -32,7 +32,7 @@ class SamplingLoop:
         self.todays_date = date.today()
 
          # Used to track the transition to the next hour of hourly measurements
-        self.actual_hour= datetime.now().hour
+        self.actual_hour = datetime.now().hour
 
         self.prev_inverter_data = None
 
@@ -109,13 +109,15 @@ class SamplingLoop:
         hr_points = self.get_high_rate_points(data, inverter_data, batteries)
         self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_hr, record=hr_points)
 
+    def write_to_influxdb_hourly(self) -> None:
         if self.cfg.calc_hourly_data:
-            mr_points = self.medium_rate_points(data)
+            mr_points = self.medium_rate_points(datetime.now())
             if mr_points:
                 self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_mr, record=mr_points)
 
+    def write_to_influxdb_daily(self) -> None:
         if self.cfg.calc_daily_data:
-            lr_points = self.low_rate_points(data)
+            lr_points = self.low_rate_points(datetime.now())
             if lr_points:
                 self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_lr, record=lr_points)
 
@@ -189,19 +191,11 @@ class SamplingLoop:
 
         return battery_points
 
-    def low_rate_points(self, data: SampleData) -> List[Point]:
-        # First check if the day rolled over
-        new_date = date.today()
-        if self.todays_date == new_date:
-            # still the same date. No summary
-            return []
-
-        # it is a new day!
-        self.todays_date = new_date
+    def low_rate_points(self, datetime) -> List[Point]:
 
         # Collect points that summarize prior day
-        points = self.compute_daily_Wh_points(data.ts)
-        points.extend(self.low_rate_points_batteries(data.ts))
+        points = self.compute_daily_Wh_points(datetime)
+        points.extend(self.low_rate_points_batteries(datetime))
 
         return points
 
@@ -343,19 +337,11 @@ class SamplingLoop:
         return points
 
     # medium rate points (hourly data)
-    def medium_rate_points(self, data: SampleData) -> List[Point]:
-        # First check if hour rolled over
-        new_hour = datetime.now().hour
-        if self.actual_hour == new_hour:
-            # still the same hour. No summary
-            return []
-
-        # it is a new hour!
-        self.actual_hour = new_hour
+    def medium_rate_points(self, datetime) -> List[Point]:
 
         # Collect points that summarize prior hour
-        points = self.compute_hourly_Wh_points(data.ts)
-        points.extend(self.medium_rate_points_batteries(data.ts))
+        points = self.compute_hourly_Wh_points(datetime)
+        points.extend(self.medium_rate_points_batteries(datetime))
 
         return points
 

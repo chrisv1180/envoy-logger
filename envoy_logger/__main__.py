@@ -7,6 +7,8 @@ from envoy_logger import enphaseenergy
 from envoy_logger.sampling_loop import SamplingLoop
 from envoy_logger.cfg import load_cfg
 
+from apscheduler.schedulers.background import BackgroundScheduler
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s [%(name)s]: %(message)s"
@@ -29,7 +31,17 @@ while True:
 
         S = SamplingLoop(envoy_token, cfg)
 
+        if cfg.calc_hourly_data:
+            scheduler_hourly = BackgroundScheduler()
+            scheduler_hourly.add_job(S.write_to_influxdb_hourly, 'cron', hour="*", minute=0, second=0)
+            scheduler_hourly.start()
+
+        if cfg.calc_daily_data:
+            scheduler_daily = BackgroundScheduler()
+            scheduler_daily.add_job(S.write_to_influxdb_daily, 'cron', hour=0)
+            scheduler_daily.start()
+
         S.run()
-    except RequestException as e:
+    except Exception as e:
         logging.error("%s: %s", str(type(e)), e)
         logging.info("Restarting data logger")

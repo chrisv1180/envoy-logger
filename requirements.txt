@@ -2,3 +2,4 @@ influxdb-client
 requests
 appdirs
 PyYAML
+apscheduler

@@ -196,6 +196,8 @@ class SamplingLoop:
         # Collect points that summarize prior day
         points = self.compute_daily_Wh_points(datetime)
         points.extend(self.low_rate_points_batteries(datetime))
+        points.extend(self.compute_daily_Wh_points_balkonkraftwerk(datetime))
+        points.extend(self.compute_daily_Wh_points_vzlogger(datetime))
 
         return points
 
@@ -342,6 +344,8 @@ class SamplingLoop:
         # Collect points that summarize prior hour
         points = self.compute_hourly_Wh_points(datetime)
         points.extend(self.medium_rate_points_batteries(datetime))
+        points.extend(self.compute_hourly_Wh_points_balkonkraftwerk(datetime))
+        points.extend(self.compute_hourly_Wh_points_vzlogger(datetime))
 
         return points
 
@@ -479,6 +483,122 @@ class SamplingLoop:
 
                     p.field(record["result"], record.get_value())
                     points.append(p)
+
+        return points
+
+    def compute_daily_Wh_points_balkonkraftwerk(self, ts: datetime) -> List[Point]:
+        query = """
+        from(bucket: "balkonkraftwerk")
+            |> range(start: -1d, stop: 0h)
+            |> filter(fn: (r) => r["_measurement"] == "mqtt_consumer")
+            |> filter(fn: (r) => r["topic"] == "inverter/HM-800/ch0/YieldTotal")
+            |> aggregateWindow(every: 1d, fn: last)
+            |> difference()
+            |> map(fn: (r) => ({r with _value: float(v: r._value) * 1000.00}))
+        """
+        result = self.influxdb_query_api.query(query=query)
+        points = []
+        for table in result:
+            for record in table.records:
+                measurement_type = record['_measurement']
+                if measurement_type == "mqtt_consumer":
+                    serial = record['host']
+                    p = Point(f"balkonkraftwerk-daily-summary-{serial}")
+                    p.tag("serial", serial)
+                    p.time(ts, WritePrecision.S)
+                    p.tag("source", "balkonkraftwerk")
+                    p.tag("measurement-type", measurement_type)
+                    p.tag("interval", "24h")
+
+                    p.field("Wh", record.get_value())
+                    points.append(p)
+
+        return points
+
+    def compute_hourly_Wh_points_balkonkraftwerk(self, ts: datetime) -> List[Point]:
+        query = """
+        from(bucket: "balkonkraftwerk")
+            |> range(start: -1h, stop: 0h)
+            |> filter(fn: (r) => r["_measurement"] == "mqtt_consumer")
+            |> filter(fn: (r) => r["topic"] == "inverter/HM-800/ch0/YieldTotal")
+            |> aggregateWindow(every: 1h, fn: last)
+            |> difference()
+            |> map(fn: (r) => ({r with _value: float(v: r._value) * 1000.00}))
+        """
+        result = self.influxdb_query_api.query(query=query)
+        points = []
+        for table in result:
+            for record in table.records:
+                measurement_type = record['_measurement']
+                if measurement_type == "mqtt_consumer":
+                    serial = record['host']
+                    p = Point(f"balkonkraftwerk-hourly-summary-{serial}")
+                    p.tag("serial", serial)
+                    p.time(ts, WritePrecision.S)
+                    p.tag("source", "balkonkraftwerk")
+                    p.tag("measurement-type", measurement_type)
+                    p.tag("interval", "1h")
+
+                    p.field("Wh", record.get_value())
+                    points.append(p)
+
+        return points
+
+    def compute_daily_Wh_points_vzlogger(self, ts: datetime) -> List[Point]:
+        query = """
+        from(bucket: "vzlogger")
+            |> range(start: -1d, stop: 0h)
+            |> filter(fn: (r) => r["_measurement"] == "vz_measurement")
+            |> filter(fn: (r) => r["meter"] == "hausstrom")
+            |> filter(fn: (r) => r["measurement"] == "zaehlerstand" or r["measurement"] == "zaehlerstand_einspeisung")
+            |> filter(fn: (r) => r["_field"] == "value")
+            |> aggregateWindow(every: 1d, fn: last)
+            |> difference()
+        """
+        result = self.influxdb_query_api.query(query=query)
+        points = []
+        for table in result:
+            for record in table.records:
+                measurement_type = record['measurement']
+                serial = record['meter']
+                p = Point(f"{measurement_type}-daily-summary-{serial}")
+                p.tag("serial", serial)
+                p.time(ts, WritePrecision.S)
+                p.tag("source", record['meter'])
+                p.tag("measurement-type", measurement_type)
+                p.tag("interval", "24h")
+
+                p.field("Wh", record.get_value())
+                points.append(p)
+
+        return points
+
+    def compute_hourly_Wh_points_vzlogger(self, ts: datetime) -> List[Point]:
+        query = """
+        from(bucket: "vzlogger")
+            |> range(start: -1h, stop: 0h)
+            |> filter(fn: (r) => r["_measurement"] == "vz_measurement")
+            |> filter(fn: (r) => r["meter"] == "hausstrom")
+            |> filter(fn: (r) => r["measurement"] == "zaehlerstand" or r["measurement"] == "zaehlerstand_einspeisung")
+            |> filter(fn: (r) => r["_field"] == "value")
+            |> aggregateWindow(every: 1h, fn: last)
+            |> difference()
+        """
+        result = self.influxdb_query_api.query(query=query)
+        points = []
+        for table in result:
+            for record in table.records:
+                measurement_type = record['measurement']
+                serial = record['meter']
+                p = Point(f"{measurement_type}-hourly-summary-{serial}")
+                p.tag("serial", serial)
+                p.time(ts, WritePrecision.S)
+                p.tag("source", record['meter'])
+                p.tag("measurement-type", measurement_type)
+                p.tag("interval", "1h")
+
+                p.field("Wh", record.get_value())
+                points.append(p)
 
         return points
 

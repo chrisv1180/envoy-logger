@@ -57,6 +57,7 @@ class SamplingLoop:
             else:
                 try:
                     self.write_to_influxdb(data, inverter_data, battery_data)
+                    self.write_to_influxdb_hourly()
                     timeout_count = 0
                 except Exception as e:
                     logging.warning(f"write_to_influxdb had an exception ({timeout_count + 1}/10): {e}")
@@ -110,10 +111,24 @@ class SamplingLoop:
         self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_hr, record=hr_points)
 
     def write_to_influxdb_hourly(self) -> None:
-        if self.cfg.calc_hourly_data:
+        # if hourly data has to be calculated and hour roled over -> calculate hourly data
+        new_hour = datetime.now().hour
+        if self.cfg.calc_hourly_data and not (self.actual_hour == new_hour):
+            # it is a new hour!
+            self.actual_hour = new_hour
+
             mr_points = self.medium_rate_points(datetime.now())
             if mr_points:
                 self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_mr, record=mr_points)
+
+
+        # if daily data has to be calculated and day roled over -> calculate daily data
+        new_date = date.today()
+        if self.cfg.calc_daily_data and not (self.todays_date == new_date):
+            # it is a new day!
+            self.todays_date = new_date
+
+            self.write_to_influxdb_daily()
 
     def write_to_influxdb_daily(self) -> None:
         if self.cfg.calc_daily_data:
@@ -240,7 +255,7 @@ class SamplingLoop:
                     p = Point(f"{measurement_type}-daily-summary-line{idx}")
                     p.tag("line-idx", idx)
 
-                p.time(ts, WritePrecision.S)
+                #p.time(ts, WritePrecision.S)
                 p.tag("source", self.cfg.source_tag)
                 p.tag("measurement-type", measurement_type)
                 p.tag("interval", "24h")
@@ -253,7 +268,7 @@ class SamplingLoop:
             p = Point(f"inverter-daily-summary-{serial}")
             p.tag("serial", serial)
             self.cfg.apply_tags_to_inverter_point(p, serial)
-            p.time(ts, WritePrecision.S)
+            #p.time(ts, WritePrecision.S)
             p.tag("source", self.cfg.source_tag)
             p.tag("measurement-type", measurement_type)
             p.tag("interval", "24h")
@@ -298,7 +313,7 @@ class SamplingLoop:
                     serial = record['serial']
                     p = Point(f"battery-daily-summary-{serial}")
                     p.tag("serial", serial)
-                    p.time(ts, WritePrecision.S)
+                    #p.time(ts, WritePrecision.S)
                     p.tag("source", self.cfg.source_tag)
                     p.tag("measurement-type", measurement_type)
                     p.tag("interval", "24h")
@@ -328,7 +343,7 @@ class SamplingLoop:
                     serial = record['serial']
                     p = Point(f"battery-daily-summary-{serial}")
                     p.tag("serial", serial)
-                    p.time(ts, WritePrecision.S)
+                    #p.time(ts, WritePrecision.S)
                     p.tag("source", self.cfg.source_tag)
                     p.tag("measurement-type", measurement_type)
                     p.tag("interval", "24h")
@@ -388,7 +403,7 @@ class SamplingLoop:
                     p = Point(f"{measurement_type}-hourly-summary-line{idx}")
                     p.tag("line-idx", idx)
 
-                p.time(ts, WritePrecision.S)
+                #p.time(ts, WritePrecision.S)
                 p.tag("source", self.cfg.source_tag)
                 p.tag("measurement-type", measurement_type)
                 p.tag("interval", "1h")
@@ -401,7 +416,7 @@ class SamplingLoop:
             p = Point(f"inverter-hourly-summary-{serial}")
             p.tag("serial", serial)
             self.cfg.apply_tags_to_inverter_point(p, serial)
-            p.time(ts, WritePrecision.S)
+            #p.time(ts, WritePrecision.S)
             p.tag("source", self.cfg.source_tag)
             p.tag("measurement-type", measurement_type)
             p.tag("interval", "1h")
@@ -446,7 +461,7 @@ class SamplingLoop:
                     serial = record['serial']
                     p = Point(f"battery-hourly-summary-{serial}")
                     p.tag("serial", serial)
-                    p.time(ts, WritePrecision.S)
+                    #p.time(ts, WritePrecision.S)
                     p.tag("source", self.cfg.source_tag)
                     p.tag("measurement-type", measurement_type)
                     p.tag("interval", "1h")
@@ -476,7 +491,7 @@ class SamplingLoop:
                     serial = record['serial']
                     p = Point(f"battery-hourly-summary-{serial}")
                     p.tag("serial", serial)
-                    p.time(ts, WritePrecision.S)
+                    #p.time(ts, WritePrecision.S)
                     p.tag("source", self.cfg.source_tag)
                     p.tag("measurement-type", measurement_type)
                     p.tag("interval", "1h")
@@ -505,7 +520,7 @@ class SamplingLoop:
                     serial = record['host']
                     p = Point(f"balkonkraftwerk-daily-summary-{serial}")
                     p.tag("serial", serial)
-                    p.time(ts, WritePrecision.S)
+                    #p.time(ts, WritePrecision.S)
                     p.tag("source", "balkonkraftwerk")
                     p.tag("measurement-type", measurement_type)
                     p.tag("interval", "24h")
@@ -534,7 +549,7 @@ class SamplingLoop:
                     serial = record['host']
                     p = Point(f"balkonkraftwerk-hourly-summary-{serial}")
                     p.tag("serial", serial)
-                    p.time(ts, WritePrecision.S)
+                    #p.time(ts, WritePrecision.S)
                     p.tag("source", "balkonkraftwerk")
                     p.tag("measurement-type", measurement_type)
                     p.tag("interval", "1h")
@@ -563,7 +578,7 @@ class SamplingLoop:
                 serial = record['meter']
                 p = Point(f"{measurement_type}-daily-summary-{serial}")
                 p.tag("serial", serial)
-                p.time(ts, WritePrecision.S)
+                #p.time(ts, WritePrecision.S)
                 p.tag("source", record['meter'])
                 p.tag("measurement-type", measurement_type)
                 p.tag("interval", "24h")
@@ -592,7 +607,7 @@ class SamplingLoop:
                 serial = record['meter']
                 p = Point(f"{measurement_type}-hourly-summary-{serial}")
                 p.tag("serial", serial)
-                p.time(ts, WritePrecision.S)
+                #p.time(ts, WritePrecision.S)
                 p.tag("source", record['meter'])
                 p.tag("measurement-type", measurement_type)
                 p.tag("interval", "1h")

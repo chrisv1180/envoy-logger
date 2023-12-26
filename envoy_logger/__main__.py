@@ -42,8 +42,7 @@ while True:
 
         if cfg.calc_daily_data:
             tz = get_localzone()
-            scheduler_hourly = BackgroundScheduler({'apscheduler.timezone': tz})
-            scheduler_daily = BackgroundScheduler()
+            scheduler_daily = BackgroundScheduler({'apscheduler.timezone': tz})
             scheduler_daily.add_job(S.write_to_influxdb_daily, 'cron', hour=0)
             scheduler_daily.start()
 

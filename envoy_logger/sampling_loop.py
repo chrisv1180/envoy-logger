@@ -504,11 +504,11 @@ class SamplingLoop:
     def compute_daily_Wh_points_balkonkraftwerk(self, ts: datetime) -> List[Point]:
         query = """
         from(bucket: "balkonkraftwerk")
-            |> range(start: -1d, stop: 0h)
+            |> range(start: -2d, stop: now())
             |> filter(fn: (r) => r["_measurement"] == "mqtt_consumer")
             |> filter(fn: (r) => r["topic"] == "inverter/HM-800/ch0/YieldTotal")
             |> aggregateWindow(every: 1d, fn: last)
-            |> difference()
+            |> spread()
             |> map(fn: (r) => ({r with _value: float(v: r._value) * 1000.00}))
         """
         result = self.influxdb_query_api.query(query=query)
@@ -533,11 +533,11 @@ class SamplingLoop:
     def compute_hourly_Wh_points_balkonkraftwerk(self, ts: datetime) -> List[Point]:
         query = """
         from(bucket: "balkonkraftwerk")
-            |> range(start: -1h, stop: 0h)
+            |> range(start: -2h, stop: now())
             |> filter(fn: (r) => r["_measurement"] == "mqtt_consumer")
             |> filter(fn: (r) => r["topic"] == "inverter/HM-800/ch0/YieldTotal")
             |> aggregateWindow(every: 1h, fn: last)
-            |> difference()
+            |> spread()
             |> map(fn: (r) => ({r with _value: float(v: r._value) * 1000.00}))
         """
         result = self.influxdb_query_api.query(query=query)
@@ -562,13 +562,13 @@ class SamplingLoop:
     def compute_daily_Wh_points_vzlogger(self, ts: datetime) -> List[Point]:
         query = """
         from(bucket: "vzlogger")
-            |> range(start: -1d, stop: 0h)
+            |> range(start: -2d, stop: now())
             |> filter(fn: (r) => r["_measurement"] == "vz_measurement")
             |> filter(fn: (r) => r["meter"] == "hausstrom")
             |> filter(fn: (r) => r["measurement"] == "zaehlerstand" or r["measurement"] == "zaehlerstand_einspeisung")
             |> filter(fn: (r) => r["_field"] == "value")
             |> aggregateWindow(every: 1d, fn: last)
-            |> difference()
+            |> spread()
         """
         result = self.influxdb_query_api.query(query=query)
         points = []
@@ -591,13 +591,13 @@ class SamplingLoop:
     def compute_hourly_Wh_points_vzlogger(self, ts: datetime) -> List[Point]:
         query = """
         from(bucket: "vzlogger")
-            |> range(start: -1h, stop: 0h)
+            |> range(start: -2h, stop: now())
             |> filter(fn: (r) => r["_measurement"] == "vz_measurement")
             |> filter(fn: (r) => r["meter"] == "hausstrom")
             |> filter(fn: (r) => r["measurement"] == "zaehlerstand" or r["measurement"] == "zaehlerstand_einspeisung")
             |> filter(fn: (r) => r["_field"] == "value")
             |> aggregateWindow(every: 1h, fn: last)
-            |> difference()
+            |> spread()
         """
         result = self.influxdb_query_api.query(query=query)
         points = []

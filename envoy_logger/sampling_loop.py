@@ -117,7 +117,7 @@ class SamplingLoop:
             # it is a new hour!
             self.actual_hour = new_hour
 
-            mr_points = self.medium_rate_points(datetime.now())
+            mr_points = self.medium_rate_points()
             if mr_points:
                 self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_mr, record=mr_points)
 
@@ -132,7 +132,7 @@ class SamplingLoop:
 
     def write_to_influxdb_daily(self) -> None:
         if self.cfg.calc_daily_data:
-            lr_points = self.low_rate_points(datetime.now())
+            lr_points = self.low_rate_points()
             if lr_points:
                 self.influxdb_write_api.write(bucket=self.cfg.influxdb_bucket_lr, record=lr_points)
 
@@ -206,25 +206,25 @@ class SamplingLoop:
 
         return battery_points
 
-    def low_rate_points(self, datetime) -> List[Point]:
+    def low_rate_points(self) -> List[Point]:
 
         # Collect points that summarize prior day
-        points = self.compute_daily_Wh_points(datetime)
-        points.extend(self.low_rate_points_batteries(datetime))
-        points.extend(self.compute_daily_Wh_points_balkonkraftwerk(datetime))
-        points.extend(self.compute_daily_Wh_points_vzlogger(datetime))
+        points = self.compute_daily_Wh_points()
+        points.extend(self.low_rate_points_batteries())
+        points.extend(self.compute_daily_Wh_points_balkonkraftwerk())
+        points.extend(self.compute_daily_Wh_points_vzlogger())
 
         return points
 
-    def low_rate_points_batteries(self, ts: datetime) -> List[Point]:
+    def low_rate_points_batteries(self) -> List[Point]:
 
         # Collect points that summarize prior day
-        points = self.compute_daily_battery_Soc_points(ts)
-        points.extend(self.compute_daily_battery_temperature_points(ts))
+        points = self.compute_daily_battery_Soc_points()
+        points.extend(self.compute_daily_battery_temperature_points())
 
         return points
 
-    def compute_daily_Wh_points(self, ts: datetime) -> List[Point]:
+    def compute_daily_Wh_points(self) -> List[Point]:
         # Not using integral(interpolate:"linear") since it does not do what you
         # think it would mean. Without the "interoplation" arg, it still does
         # linear interpolation correctly.
@@ -277,7 +277,7 @@ class SamplingLoop:
 
         return points
 
-    def compute_daily_battery_Soc_points(self, ts: datetime) -> List[Point]:
+    def compute_daily_battery_Soc_points(self) -> List[Point]:
 
         query = f"""
         from(bucket: "{self.cfg.influxdb_bucket_hr}")
@@ -323,7 +323,7 @@ class SamplingLoop:
 
         return points
 
-    def compute_daily_battery_temperature_points(self, ts: datetime) -> List[Point]:
+    def compute_daily_battery_temperature_points(self) -> List[Point]:
 
         query = f"""
         from(bucket: "{self.cfg.influxdb_bucket_hr}")
@@ -354,25 +354,25 @@ class SamplingLoop:
         return points
 
     # medium rate points (hourly data)
-    def medium_rate_points(self, datetime) -> List[Point]:
+    def medium_rate_points(self) -> List[Point]:
 
         # Collect points that summarize prior hour
-        points = self.compute_hourly_Wh_points(datetime)
-        points.extend(self.medium_rate_points_batteries(datetime))
-        points.extend(self.compute_hourly_Wh_points_balkonkraftwerk(datetime))
-        points.extend(self.compute_hourly_Wh_points_vzlogger(datetime))
+        points = self.compute_hourly_Wh_points()
+        points.extend(self.medium_rate_points_batteries())
+        points.extend(self.compute_hourly_Wh_points_balkonkraftwerk())
+        points.extend(self.compute_hourly_Wh_points_vzlogger())
 
         return points
 
-    def medium_rate_points_batteries(self, ts: datetime) -> List[Point]:
+    def medium_rate_points_batteries(self) -> List[Point]:
 
         # Collect points that summarize prior day
-        points = self.compute_hourly_battery_Soc_points(ts)
-        points.extend(self.compute_hourly_battery_temperature_points(ts))
+        points = self.compute_hourly_battery_Soc_points()
+        points.extend(self.compute_hourly_battery_temperature_points())
 
         return points
 
-    def compute_hourly_Wh_points(self, ts: datetime) -> List[Point]:
+    def compute_hourly_Wh_points(self) -> List[Point]:
         # Not using integral(interpolate:"linear") since it does not do what you
         # think it would mean. Without the "interoplation" arg, it still does
         # linear interpolation correctly.
@@ -425,7 +425,7 @@ class SamplingLoop:
 
         return points
 
-    def compute_hourly_battery_Soc_points(self, ts: datetime) -> List[Point]:
+    def compute_hourly_battery_Soc_points(self) -> List[Point]:
 
         query = f"""
         from(bucket: "{self.cfg.influxdb_bucket_hr}")
@@ -471,7 +471,7 @@ class SamplingLoop:
 
         return points
 
-    def compute_hourly_battery_temperature_points(self, ts: datetime) -> List[Point]:
+    def compute_hourly_battery_temperature_points(self) -> List[Point]:
 
         query = f"""
         from(bucket: "{self.cfg.influxdb_bucket_hr}")
@@ -501,7 +501,7 @@ class SamplingLoop:
 
         return points
 
-    def compute_daily_Wh_points_balkonkraftwerk(self, ts: datetime) -> List[Point]:
+    def compute_daily_Wh_points_balkonkraftwerk(self) -> List[Point]:
         query = """
         from(bucket: "balkonkraftwerk")
             |> range(start: -2d, stop: 0d)
@@ -530,7 +530,7 @@ class SamplingLoop:
 
         return points
 
-    def compute_hourly_Wh_points_balkonkraftwerk(self, ts: datetime) -> List[Point]:
+    def compute_hourly_Wh_points_balkonkraftwerk(self) -> List[Point]:
         query = """
         from(bucket: "balkonkraftwerk")
             |> range(start: -2h, stop: now())
@@ -559,7 +559,7 @@ class SamplingLoop:
 
         return points
 
-    def compute_daily_Wh_points_vzlogger(self, ts: datetime) -> List[Point]:
+    def compute_daily_Wh_points_vzlogger(self) -> List[Point]:
         query = """
         from(bucket: "vzlogger")
             |> range(start: -2d, stop: 0d)
@@ -588,7 +588,7 @@ class SamplingLoop:
 
         return points
 
-    def compute_hourly_Wh_points_vzlogger(self, ts: datetime) -> List[Point]:
+    def compute_hourly_Wh_points_vzlogger(self) -> List[Point]:
         query = """
         from(bucket: "vzlogger")
             |> range(start: -2h, stop: now())

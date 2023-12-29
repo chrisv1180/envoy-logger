@@ -281,27 +281,27 @@ class SamplingLoop:
 
         query = f"""
         from(bucket: "{self.cfg.influxdb_bucket_hr}")
-            |> range(start: -24h, stop: 0h)
+            |> range(start: -1d, stop: now())
             |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
             |> filter(fn: (r) => r["measurement-type"] == "battery")
             |> filter(fn: (r) => r["_field"] == "percentFull")
-            |> aggregateWindow(every: 24h, fn: mean, createEmpty: false)
+            |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
             |> yield(name: "mean_soc")
         
         from(bucket: "{self.cfg.influxdb_bucket_hr}")
-            |> range(start: -24h, stop: 0h)
+            |> range(start: -1d, stop: now())
             |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
             |> filter(fn: (r) => r["measurement-type"] == "battery")
             |> filter(fn: (r) => r["_field"] == "percentFull")
-            |> aggregateWindow(every: 24h, fn: max, createEmpty: false)
+            |> aggregateWindow(every: 1d, fn: max, createEmpty: false)
             |> yield(name: "max_soc")
         
         from(bucket: "{self.cfg.influxdb_bucket_hr}")
-            |> range(start: -24h, stop: 0h)
+            |> range(start: -1d, stop: now())
             |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
             |> filter(fn: (r) => r["measurement-type"] == "battery")
             |> filter(fn: (r) => r["_field"] == "percentFull")
-            |> aggregateWindow(every: 24h, fn: min, createEmpty: false)
+            |> aggregateWindow(every: 1d, fn: min, createEmpty: false)
             |> yield(name: "min_soc")
         """
         result = self.influxdb_query_api.query(query=query)
@@ -327,11 +327,11 @@ class SamplingLoop:
 
         query = f"""
         from(bucket: "{self.cfg.influxdb_bucket_hr}")
-            |> range(start: -24h, stop: 0h)
+            |> range(start: -1d, stop: now())
             |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
             |> filter(fn: (r) => r["measurement-type"] == "battery")
             |> filter(fn: (r) => r["_field"] == "temperature")
-            |> aggregateWindow(every: 24h, fn: mean, createEmpty: false)
+            |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
             |> yield(name: "mean_temperature")
         """
         result = self.influxdb_query_api.query(query=query)
@@ -429,7 +429,7 @@ class SamplingLoop:
 
         query = f"""
         from(bucket: "{self.cfg.influxdb_bucket_hr}")
-            |> range(start: -1h, stop: 0h)
+            |> range(start: -1h, stop: now())
             |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
             |> filter(fn: (r) => r["measurement-type"] == "battery")
             |> filter(fn: (r) => r["_field"] == "percentFull")
@@ -437,7 +437,7 @@ class SamplingLoop:
             |> yield(name: "mean_soc")
             
         from(bucket: "{self.cfg.influxdb_bucket_hr}")
-            |> range(start: -1h, stop: 0h)
+            |> range(start: -1h, stop: now())
             |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
             |> filter(fn: (r) => r["measurement-type"] == "battery")
             |> filter(fn: (r) => r["_field"] == "percentFull")
@@ -445,7 +445,7 @@ class SamplingLoop:
             |> yield(name: "max_soc")
             
         from(bucket: "{self.cfg.influxdb_bucket_hr}")
-            |> range(start: -1h, stop: 0h)
+            |> range(start: -1h, stop: now())
             |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
             |> filter(fn: (r) => r["measurement-type"] == "battery")
             |> filter(fn: (r) => r["_field"] == "percentFull")
@@ -475,7 +475,7 @@ class SamplingLoop:
 
         query = f"""
         from(bucket: "{self.cfg.influxdb_bucket_hr}")
-            |> range(start: -1h, stop: 0h)
+            |> range(start: -1h, stop: now())
             |> filter(fn: (r) => r["source"] == "{self.cfg.source_tag}")
             |> filter(fn: (r) => r["measurement-type"] == "battery")
             |> filter(fn: (r) => r["_field"] == "temperature")
@@ -504,7 +504,7 @@ class SamplingLoop:
     def compute_daily_Wh_points_balkonkraftwerk(self, ts: datetime) -> List[Point]:
         query = """
         from(bucket: "balkonkraftwerk")
-            |> range(start: -2d, stop: now())
+            |> range(start: -2d, stop: 0d)
             |> filter(fn: (r) => r["_measurement"] == "mqtt_consumer")
             |> filter(fn: (r) => r["topic"] == "inverter/HM-800/ch0/YieldTotal")
             |> aggregateWindow(every: 1d, fn: last)
@@ -562,7 +562,7 @@ class SamplingLoop:
     def compute_daily_Wh_points_vzlogger(self, ts: datetime) -> List[Point]:
         query = """
         from(bucket: "vzlogger")
-            |> range(start: -2d, stop: now())
+            |> range(start: -2d, stop: 0d)
             |> filter(fn: (r) => r["_measurement"] == "vz_measurement")
             |> filter(fn: (r) => r["meter"] == "hausstrom")
             |> filter(fn: (r) => r["measurement"] == "zaehlerstand" or r["measurement"] == "zaehlerstand_einspeisung")

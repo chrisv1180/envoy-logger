@@ -23,7 +23,8 @@ while True:
         envoy_token = enphaseenergy.get_token(
             cfg.enphase_email,
             cfg.enphase_password,
-            cfg.envoy_serial
+            cfg.envoy_serial,
+            cfg.enphase_token_dir
         )
 
         S = SamplingLoop(envoy_token, cfg)

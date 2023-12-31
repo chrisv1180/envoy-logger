@@ -61,11 +61,13 @@ def token_expiration_date(token: str) -> datetime:
     exp = datetime.fromtimestamp(jwt['exp'])
     return exp
 
-def get_token_cache_path(envoy_serial: str) -> str:
-    return os.path.join(user_cache_dir("enphase-envoy"), f"{envoy_serial}.token")
+def get_token_cache_path(envoy_serial: str, token_dir: str = None) -> str:
+    if token_dir is None:
+        token_dir = user_cache_dir("enphase-envoy")
+    return os.path.join(token_dir, f"{envoy_serial}.token")
 
-def get_cached_token(envoy_serial: str) -> Optional[str]:
-    path = get_token_cache_path(envoy_serial)
+def get_cached_token(envoy_serial: str, token_dir: str) -> Optional[str]:
+    path = get_token_cache_path(envoy_serial, token_dir)
     if not os.path.exists(path):
         return None
     with open(path, 'r', encoding='utf-8') as f:
@@ -73,8 +75,8 @@ def get_cached_token(envoy_serial: str) -> Optional[str]:
         return f.read()
 
 
-def save_token_to_cache(envoy_serial: str, token: str) -> None:
-    path = get_token_cache_path(envoy_serial)
+def save_token_to_cache(envoy_serial: str, token: str, token_dir: str) -> None:
+    path = get_token_cache_path(envoy_serial, token_dir)
     LOG.info("Caching token to: %s", path)
     parent_dir = os.path.dirname(path)
     if not os.path.exists(parent_dir):
@@ -82,15 +84,15 @@ def save_token_to_cache(envoy_serial: str, token: str) -> None:
     with open(path, 'w', encoding='utf-8') as f:
         f.write(token)
 
-def get_token(email: str, password: str, envoy_serial: str) -> str:
+def get_token(email: str, password: str, envoy_serial: str, token_dir: str) -> str:
     """
     Do whatever it takes to get a token
     """
-    token = get_cached_token(envoy_serial)
+    token = get_cached_token(envoy_serial, token_dir)
     if token is None:
         # cached token does not exist. Get a new one
         token = get_new_token(email, password, envoy_serial)
-        save_token_to_cache(envoy_serial, token)
+        save_token_to_cache(envoy_serial, token, token_dir)
 
     exp = token_expiration_date(token)
     time_left = exp - datetime.now()
@@ -98,6 +100,6 @@ def get_token(email: str, password: str, envoy_serial: str) -> str:
         # token will expire soon. get a new one
         LOG.info("Token will expire soon. Getting a new one")
         token = get_new_token(email, password, envoy_serial)
-        save_token_to_cache(envoy_serial, token)
+        save_token_to_cache(envoy_serial, token, token_dir)
 
     return token

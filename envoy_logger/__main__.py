@@ -1,11 +1,10 @@
 import logging
 import argparse
+import time
 
-from requests.exceptions import RequestException
-
-from . import enphaseenergy
-from .sampling_loop import SamplingLoop
-from .cfg import load_cfg
+from envoy_logger import enphaseenergy
+from envoy_logger.sampling_loop import SamplingLoop
+from envoy_logger.cfg import load_cfg
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,12 +23,16 @@ while True:
         envoy_token = enphaseenergy.get_token(
             cfg.enphase_email,
             cfg.enphase_password,
-            cfg.envoy_serial
+            cfg.envoy_serial,
+            cfg.enphase_token_dir
         )
 
         S = SamplingLoop(envoy_token, cfg)
 
         S.run()
-    except RequestException as e:
+    except Exception as e:
         logging.error("%s: %s", str(type(e)), e)
+
+        # sleep 5 minutes to recover
+        time.sleep(300)
         logging.info("Restarting data logger")

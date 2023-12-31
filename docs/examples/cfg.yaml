@@ -4,6 +4,7 @@
 enphaseenergy:
   email: name@example.com
   password: mypassword123
+  # token_dir: /etc/envoy_logger  # comment out if you want to use default user_cache_dir; should be same as ENVOY_LOGGER_CFG_PATH (default for docker: /etc/envoy_logger)
 
 # Information about your specific Envoy instance.
 # https://enlighten.enphaseenergy.com will report the serial number under the "IQ-Gateway" information
@@ -28,7 +29,12 @@ influxdb:
   # same bucket
   bucket_hr: high_rate
   bucket_lr: low_rate
+  bucket_mr: medium_rate
   # bucket: all_data
+
+  # true if hourly or daily data should be calculated and saved in bucket_mr / bucket_lr
+  #calc_daily_data: true
+  #calc_hourly_data: true
 
 # Since the Envoy only tracks panel-level inverter production by serial number,
 # it can be useful to provide InfluxDB measurements with additional tags that

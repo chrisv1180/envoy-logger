@@ -12,6 +12,7 @@ class Config:
         try:
             self.enphase_email = data['enphaseenergy']['email'] # type: str
             self.enphase_password = data['enphaseenergy']['password'] # type: str
+            self.enphase_token_dir = data['enphaseenergy'].get('token_dir', None) # type: str
 
             self.envoy_serial = str(data['envoy']['serial'])
             self.envoy_url = data['envoy'].get('url', 'https://envoy.local') # type: str
@@ -24,8 +25,13 @@ class Config:
             bucket = data['influxdb'].get('bucket', None)
             bucket_lr = data['influxdb'].get('bucket_lr', None)
             bucket_hr = data['influxdb'].get('bucket_hr', None)
+            bucket_mr = data['influxdb'].get('bucket_mr', None)
             self.influxdb_bucket_lr = bucket_lr or bucket
+            self.influxdb_bucket_mr = bucket_mr or bucket
             self.influxdb_bucket_hr = bucket_hr or bucket
+
+            self.calc_hourly_data = data['influxdb'].get('calc_hourly_data', False)
+            self.calc_daily_data = data['influxdb'].get('calc_daily_data', False)
 
             self.inverters = {} # type: Dict[str, InverterConfig]
             for serial, inverter_data in data.get("inverters", {}).items():

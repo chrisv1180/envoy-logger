@@ -47,6 +47,23 @@ def get_power_data(url: str, session_id: str) -> model.SampleData:
     data = model.SampleData(json_data, ts)
     return data
 
+def get_battery_data(url: str, session_id: str) -> model.BatteriesSample:
+    LOG.debug("Fetching battery data")
+    ts = datetime.now(timezone.utc)
+    cookies = {
+        'sessionId': session_id,
+    }
+    response = requests.get(
+        f'{url}/ivp/ensemble/inventory',
+        cookies=cookies,
+        verify=False,
+        timeout=30,
+    )
+    response.raise_for_status()  # raise HTTPError if one occurred
+    json_data = response.json()
+    data = model.BatteriesSample(json_data, ts)
+    return data
+
 
 def get_inverter_data(url: str, session_id: str) -> Dict[str, model.InverterSample]:
     LOG.debug("Fetching inverter data")
